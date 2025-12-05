@@ -103,7 +103,7 @@ function App() {
             </svg>
           </div>
           <div className="brand-text">
-            <h1>Email Intelligence</h1>
+            <h1>Explore AI</h1>
             <span>AI-Powered Analysis</span>
           </div>
         </div>
@@ -138,7 +138,7 @@ function App() {
 
       {/* Footer */}
       <footer className="app-footer">
-        <span>Email Intelligence API v1.0</span>
+        <span>Explore AI v1.0</span>
         <span className="separator">•</span>
         <span>NER-Powered Analysis</span>
       </footer>
