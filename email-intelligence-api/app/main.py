@@ -51,6 +51,14 @@ async def startup_event():
     # Initialize database tables
     init_db()
     
+    # Load BM25 index if hybrid search is enabled
+    if settings.enable_hybrid_search:
+        from app.core.bm25_search import bm25_search
+        if bm25_search.load_index():
+            print("🔍 BM25 index loaded for hybrid search")
+        else:
+            print("⚠️  BM25 index not found. Run scripts/build_bm25_index.py to enable hybrid search")
+    
     # Start background scheduler
     if settings.enable_scheduler:
         from app.services.scheduler_service import scheduler_service

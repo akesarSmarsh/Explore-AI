@@ -6,6 +6,7 @@ A FastAPI backend for email analysis using NER (Named Entity Recognition), seman
 
 - **Named Entity Recognition (NER)**: Extract people, organizations, locations, money, dates, emails, and phone numbers
 - **Word Cloud Visualization**: API for word cloud data with entity frequencies
+- **Hybrid Search**: BM25 + MiniLM semantic search combining keyword-based and semantic search
 - **Semantic Search**: Natural language search using AI embeddings
 - **Smart Alerts**: Customizable rules with anomaly detection
 - **Anomaly Detection**: Volume spike, sudden appearance, and frequency change detection
@@ -19,7 +20,8 @@ A FastAPI backend for email analysis using NER (Named Entity Recognition), seman
 - **SQLite**: Lightweight database for structured data
 - **ChromaDB**: Vector database for semantic search
 - **spaCy**: NLP library for entity extraction
-- **Sentence Transformers**: AI embeddings for semantic search
+- **Sentence Transformers**: AI embeddings for semantic search (all-MiniLM-L12-v2)
+- **BM25**: Keyword-based ranking algorithm for hybrid search
 - **APScheduler**: Background job scheduling
 
 ## Quick Start
@@ -32,16 +34,76 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-### 2. Start the Server
+### 2. Process Emails and Build Search Indices
+
+```bash
+# Process emails from CSV (extracts entities, generates embeddings)
+python scripts/process_emails.py
+
+# Build BM25 index for hybrid search
+python scripts/build_bm25_index.py
+```
+
+### 3. Start the Server
 
 ```bash
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Access the API
+### 4. Access the API
 
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
+
+## Hybrid Search (BM25 + Semantic)
+
+The API now supports **hybrid search** that combines:
+- **BM25**: Fast keyword-based ranking (good for exact matches)
+- **Semantic Search**: AI embeddings using all-MiniLM-L12-v2 (good for conceptual similarity)
+
+### How It Works
+
+1. **BM25 Search** scores emails based on keyword relevance (term frequency, inverse document frequency)
+2. **Semantic Search** finds conceptually similar emails using vector embeddings
+3. **Scores are combined** using configurable weights: `final_score = (0.3 × BM25) + (0.7 × semantic)`
+
+### Configuration
+
+Edit `app/config.py` to adjust hybrid search:
+
+```python
+enable_hybrid_search: bool = True  # Enable/disable hybrid search
+bm25_weight: float = 0.3           # Weight for keyword matching
+semantic_weight: float = 0.7       # Weight for semantic similarity
+```
+
+### Building the BM25 Index
+
+After processing emails, build the BM25 index:
+
+```bash
+python scripts/build_bm25_index.py
+```
+
+This creates `data/bm25_index.pkl` which is loaded into memory on server startup.
+
+### Using Hybrid Search
+
+Use the semantic search endpoint - hybrid search is automatic:
+
+```bash
+POST /api/v1/search/semantic
+{
+  "query": "quarterly earnings report",
+  "limit": 10
+}
+```
+
+**Benefits:**
+- Better recall with exact keyword matches
+- Better understanding with semantic similarity
+- Configurable balance between precision and recall
+- Fast performance with in-memory BM25 index
 
 ## API Endpoints
 
@@ -195,12 +257,15 @@ email-intelligence-api/
 │   └── core/
 │       ├── ner_processor.py
 │       ├── embeddings.py
-│       └── vector_store.py
+│       ├── vector_store.py
+│       └── bm25_search.py         # BM25 search engine
 ├── scripts/
 │   ├── download_data.py
-│   └── process_emails.py
+│   ├── process_emails.py
+│   └── build_bm25_index.py        # Build BM25 index
 ├── data/
 │   ├── emails.db                  # SQLite database
+│   ├── bm25_index.pkl             # BM25 search index
 │   └── chroma/                    # Vector database
 ├── requirements.txt
 ├── Dockerfile

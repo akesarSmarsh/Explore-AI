@@ -94,24 +94,6 @@ class SearchService:
             distance = search_results["distances"][i] if search_results["distances"] else 0
             relevance_score = 1 - distance
             
-            # Get snippet
-            snippet = self._get_snippet(email.body, request.query) if email.body else None
-            
-            # Get matched entities
-            matched_entities = [e.text for e in email.entities[:5]]
-            
-            results.append(SearchResult(
-                email_id=email.id,
-                subject=email.subject,
-                sender=email.sender,
-                date=email.date,
-                relevance_score=round(relevance_score, 4),
-                snippet=snippet,
-                matched_entities=matched_entities
-            ))
-            
-            if len(results) >= request.limit:
-                break
         
         return results
     
@@ -213,6 +195,24 @@ class SearchService:
                 sender=email.sender,
                 date=email.date,
                 relevance_score=round(combined_scores[email_id], 4),
+                snippet=snippet,
+                matched_entities=matched_entities
+            ))
+            
+            if len(results) >= request.limit:
+                break
+        
+        return results
+    
+    def find_similar(self, request: SimilarEmailRequest) -> List[SearchResult]:
+            matched_entities = [e.text for e in email.entities[:5]]
+            
+            results.append(SearchResult(
+                email_id=email.id,
+                subject=email.subject,
+                sender=email.sender,
+                date=email.date,
+                relevance_score=round(relevance_score, 4),
                 snippet=snippet,
                 matched_entities=matched_entities
             ))

@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # Vector store settings
     vector_distance_metric: str = "cosine"  # Options: cosine, l2, ip
     
+    # Hybrid search settings
+    enable_hybrid_search: bool = True
+    bm25_weight: float = 0.3
+    semantic_weight: float = 0.7
+    bm25_index_path: str = "./data/bm25_index.pkl"
+    
     # API settings
     api_v1_prefix: str = "/api/v1"
     cors_origins: str = '["http://localhost:3000","http://localhost:5173"]'
