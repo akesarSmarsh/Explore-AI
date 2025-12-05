@@ -139,6 +139,8 @@ class EmailNotificationService:
         alert_desc = alert.get('description', '')
         category = alert.get('category', 'unknown')
         severity = alert.get('severity', 'medium')
+        entity_type = alert.get('entity_type', '')
+        entity_value = alert.get('entity_value', '')
         
         severity_colors = {
             'low': '#22c55e',
@@ -148,20 +150,96 @@ class EmailNotificationService:
         }
         severity_color = severity_colors.get(severity, '#6b7280')
         
-        # Build anomaly rows
+        # Build anomaly rows with enhanced information
         anomaly_rows = ""
         for anomaly in anomalies[:10]:  # Limit to 10 anomalies
             timestamp = anomaly.get('timestamp', 'N/A')
             count = anomaly.get('count', 0)
             anomaly_type = anomaly.get('anomaly_type', 'unknown')
+            baseline_value = anomaly.get('baseline_value', 0)
+            trigger_reason = anomaly.get('trigger_reason', '')
+            
+            # Format anomaly type display
+            type_colors = {
+                'spike': '#ef4444',
+                'silence': '#3b82f6',
+                'unusual_pattern': '#f59e0b',
+                'semantic_match': '#8b5cf6'  # Purple for semantic matches
+            }
+            type_color = type_colors.get(anomaly_type, '#6b7280')
+            
+            # Format type label
+            type_labels = {
+                'spike': 'Volume Spike',
+                'silence': 'Silence',
+                'unusual_pattern': 'Unusual Pattern',
+                'semantic_match': 'Semantic Match'
+            }
+            type_label = type_labels.get(anomaly_type, anomaly_type)
             
             anomaly_rows += f"""
             <tr>
                 <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">{timestamp}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">{count}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">{anomaly_type}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
+                    <span style="background: {type_color}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">{type_label}</span>
+                </td>
             </tr>
             """
+            
+            # Add trigger reason if available
+            if trigger_reason:
+                anomaly_rows += f"""
+            <tr>
+                <td colspan="2" style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; font-size: 13px; color: #4b5563;">
+                    <strong>Reason:</strong> {trigger_reason}
+                </td>
+            </tr>
+                """
+        
+        # Build top entities section if available
+        top_entities_html = ""
+        if anomalies and anomalies[0].get('top_entities'):
+            top_entities = anomalies[0].get('top_entities', [])
+            if top_entities:
+                entities_list = ""
+                for ent in top_entities[:5]:
+                    entity_text = ent.get('entity', 'Unknown')
+                    entity_count = ent.get('count', 0)
+                    entities_list += f"<li style='margin: 4px 0;'><strong>{entity_text}</strong> - {entity_count} mentions</li>"
+                
+                top_entities_html = f"""
+                <div style="margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <h4 style="margin: 0 0 8px 0; color: #1e40af;">Top Contributing Entities</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #374151;">
+                        {entities_list}
+                    </ul>
+                </div>
+                """
+        
+        # Entity info section for entity_type alerts
+        entity_info_html = ""
+        if category == 'entity_type' and entity_type:
+            entity_info_html = f"""
+            <div style="margin-bottom: 16px; padding: 12px; background: #fef3c7; border-radius: 8px;">
+                <strong>Entity Type:</strong> {entity_type}
+                {f'<br><strong>Entity Value:</strong> {entity_value}' if entity_value else ''}
+            </div>
+            """
+        
+        # Smart AI info section
+        smart_ai_info_html = ""
+        if category == 'smart_ai':
+            total_matches = sum(a.get('count', 0) for a in anomalies)
+            smart_ai_info_html = f"""
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0e7fe; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                <strong>🤖 Smart AI Semantic Search</strong><br>
+                <span style="color: #6b7280;">Query: "{alert_desc[:100]}{'...' if len(alert_desc) > 100 else ''}"</span><br>
+                <span style="color: #8b5cf6; font-weight: 600;">{total_matches} matching emails found across {len(anomalies)} time periods</span>
+            </div>
+            """
+        
+        # Dashboard URL
+        dashboard_url = "http://localhost:5173/?tab=dashboard"
         
         html = f"""
         <!DOCTYPE html>
@@ -186,7 +264,10 @@ class EmailNotificationService:
                     </div>
                     
                     <h2 style="margin: 0 0 8px 0; color: #1f2937;">{alert_name}</h2>
-                    <p style="margin: 0 0 24px 0; color: #6b7280;">{alert_desc}</p>
+                    <p style="margin: 0 0 16px 0; color: #6b7280;">{alert_desc}</p>
+                    
+                    {entity_info_html}
+                    {smart_ai_info_html}
                     
                     <!-- Anomalies Table -->
                     <h3 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">Detected Anomalies ({len(anomalies)})</h3>
@@ -194,7 +275,6 @@ class EmailNotificationService:
                         <thead>
                             <tr style="background: #e5e7eb;">
                                 <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151;">Time</th>
-                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151;">Count</th>
                                 <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151;">Type</th>
                             </tr>
                         </thead>
@@ -205,9 +285,11 @@ class EmailNotificationService:
                     
                     {f'<p style="margin-top: 8px; color: #9ca3af; font-size: 12px;">Showing 10 of {len(anomalies)} anomalies</p>' if len(anomalies) > 10 else ''}
                     
+                    {top_entities_html}
+                    
                     <!-- Action Button -->
                     <div style="margin-top: 24px; text-align: center;">
-                        <a href="http://localhost:5173/?tab=dashboard" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View in Dashboard</a>
+                        <a href="{dashboard_url}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View in Dashboard</a>
                     </div>
                 </div>
                 
@@ -229,24 +311,63 @@ class EmailNotificationService:
         alert_name = alert.get('name', 'Unknown Alert')
         alert_desc = alert.get('description', '')
         severity = alert.get('severity', 'medium')
+        category = alert.get('category', 'unknown')
+        entity_type = alert.get('entity_type', '')
+        entity_value = alert.get('entity_value', '')
         
         text = f"""
 ALERT TRIGGERED: {alert_name}
 {'=' * 50}
 
 Severity: {severity.upper()}
+Category: {category.replace('_', ' ').title()}
 Description: {alert_desc}
-
-Detected Anomalies ({len(anomalies)}):
+"""
+        # Add entity info for entity_type alerts
+        if category == 'entity_type' and entity_type:
+            text += f"""\nEntity Type: {entity_type}"""
+            if entity_value:
+                text += f"\nEntity Value: {entity_value}"
+            text += "\n"
+        
+        # Add Smart AI info
+        if category == 'smart_ai':
+            total_matches = sum(a.get('count', 0) for a in anomalies)
+            text += f"""\n🤖 Smart AI Semantic Search
+Query: "{alert_desc[:100]}{'...' if len(alert_desc) > 100 else ''}"
+{total_matches} matching emails found across {len(anomalies)} time periods
+"""
+        
+        text += f"""\nDetected Anomalies ({len(anomalies)}):
 {'-' * 30}
 """
         for anomaly in anomalies[:10]:
-            text += f"- {anomaly.get('timestamp', 'N/A')}: Count={anomaly.get('count', 0)}, Type={anomaly.get('anomaly_type', 'unknown')}\n"
+            anomaly_type = anomaly.get('anomaly_type', 'unknown')
+            trigger_reason = anomaly.get('trigger_reason', '')
+            
+            text += f"- {anomaly.get('timestamp', 'N/A')}\n"
+            text += f"  Type: {anomaly_type}\n"
+            if trigger_reason:
+                text += f"  Reason: {trigger_reason}\n"
+            text += "\n"
+        
+        # Add top entities if available
+        if anomalies and anomalies[0].get('top_entities'):
+            top_entities = anomalies[0].get('top_entities', [])
+            if top_entities:
+                text += f"\nTop Contributing Entities:\n{'-' * 30}\n"
+                for ent in top_entities[:5]:
+                    entity_text = ent.get('entity', 'Unknown')
+                    entity_count = ent.get('count', 0)
+                    text += f"  - {entity_text}: {entity_count} mentions\n"
+        
+        # Dashboard URL
+        dashboard_url = "http://localhost:5173/?tab=dashboard"
         
         text += f"""
 {'-' * 30}
 
-View in Dashboard: http://localhost:5173/?tab=dashboard
+View in Dashboard: {dashboard_url}
 
 This is an automated alert from Email Intelligence System
 Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}

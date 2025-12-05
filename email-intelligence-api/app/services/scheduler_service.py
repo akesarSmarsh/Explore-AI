@@ -207,9 +207,27 @@ class SchedulerService:
             kmeans_clusters=alert.kmeans_clusters or 3
         )
         
-        anomalies = result.get('anomalies', [])
-        if not anomalies:
+        # Check if anomaly was detected
+        is_anomaly = result.get('is_anomaly', False)
+        if not is_anomaly:
             return False
+        
+        # Skip if current_value is 0 (no actual activity to report)
+        current_value = result.get('current_value', 0)
+        if current_value == 0 and result.get('anomaly_type') != 'silence':
+            logger.info(f"Entity alert {alert.name}: anomaly detected but no current activity, skipping notification")
+            return False
+        
+        # Format anomalies for email template
+        anomalies = [{
+            'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+            'count': int(current_value * (alert.window_hours or 24)),  # Total count in window
+            'anomaly_type': result.get('anomaly_type', 'unknown'),
+            'baseline_value': result.get('baseline_value', 0),
+            'anomaly_score': result.get('anomaly_score', 0),
+            'trigger_reason': result.get('trigger_reason', ''),
+            'top_entities': result.get('top_entities', [])
+        }]
         
         # Check cooldown
         if alert.last_triggered_at:
@@ -320,19 +338,40 @@ class SchedulerService:
                 return {'anomalies': []}
             
             # Group by day (since data spans years)
-            daily: Dict[str, int] = {}
+            daily: Dict[str, List] = {}  # Store email details per day
             for email in matching:
                 if email.date:
                     key = email.date.strftime('%Y-%m-%d')
-                    daily[key] = daily.get(key, 0) + 1
+                    if key not in daily:
+                        daily[key] = []
+                    daily[key].append({
+                        'subject': email.subject or 'No Subject',
+                        'sender': email.sender or 'Unknown',
+                        'relevance': getattr(email, 'relevance_score', 0)
+                    })
             
-            anomalies = [
-                {'timestamp': ts, 'count': count, 'anomaly_type': 'semantic_match', 'is_anomaly': True}
-                for ts, count in sorted(daily.items(), reverse=True)[:10]  # Top 10 days
-            ]
+            # Calculate baseline (average emails per day)
+            total_matching = len(matching)
+            baseline_per_day = total_matching / max(len(daily), 1)
             
-            print(f"[SMART AI EVAL] Generated {len(anomalies)} anomaly entries")
-            return {'anomalies': anomalies}
+            anomalies = []
+            for ts, emails_list in sorted(daily.items(), key=lambda x: len(x[1]), reverse=True)[:10]:
+                count = len(emails_list)
+                # Top senders for this day
+                top_senders = list(set(e['sender'] for e in emails_list[:5]))
+                
+                anomalies.append({
+                    'timestamp': ts,
+                    'count': count,
+                    'anomaly_type': 'semantic_match',
+                    'is_anomaly': True,
+                    'baseline_value': round(baseline_per_day, 2),
+                    'trigger_reason': f"Found {count} emails matching '{alert.description[:50]}...' on {ts}",
+                    'top_entities': [{'entity': s, 'count': 1} for s in top_senders[:3]]
+                })
+            
+            print(f"[SMART AI EVAL] Generated {len(anomalies)} anomaly entries with {total_matching} total matching emails")
+            return {'anomalies': anomalies, 'total_matching': total_matching}
             
         except Exception as e:
             logger.error(f"Error in Smart AI alert evaluation: {e}")
