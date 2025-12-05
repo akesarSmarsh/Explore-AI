@@ -43,6 +43,10 @@ function AlertsDashboard() {
   // Hover state for anomaly popup
   const [hoveredPoint, setHoveredPoint] = useState(null);
   
+  // Alert rating state
+  const [alertRating, setAlertRating] = useState(null);
+  const [showRatingPopup, setShowRatingPopup] = useState(false);
+  
   // Helper to get entity color
   const getEntityColor = (type) => ENTITY_COLORS[type] || '#6b7280';
 
@@ -415,6 +419,43 @@ function AlertsDashboard() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="chevron">
                       <polyline points="6 9 12 15 18 9" />
                     </svg>
+                  </div>
+                  
+                  {/* Rate Button */}
+                  <div className="rate-section">
+                    {alertRating ? (
+                      <div className="rating-display" onClick={() => setShowRatingPopup(true)}>
+                        <span className="rating-star">★</span>
+                        <span className="rating-value">{alertRating}/10</span>
+                      </div>
+                    ) : (
+                      <button className="rate-btn" onClick={() => setShowRatingPopup(true)}>
+                        Rate
+                      </button>
+                    )}
+                    
+                    {showRatingPopup && (
+                      <div className="rating-popup">
+                        <div className="rating-popup-header">
+                          <span>Rate this alert (1-10)</span>
+                          <button onClick={() => setShowRatingPopup(false)}>×</button>
+                        </div>
+                        <div className="rating-numbers">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                            <button
+                              key={num}
+                              className={`rating-num ${alertRating === num ? 'selected' : ''}`}
+                              onClick={() => {
+                                setAlertRating(num);
+                                setShowRatingPopup(false);
+                              }}
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

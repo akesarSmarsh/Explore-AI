@@ -1066,3 +1066,127 @@
   color: white;
   white-space: nowrap;
 }
+
+/* ========== Alert Rating Styles ========== */
+.rate-section {
+  position: relative;
+  margin-left: 0.75rem;
+}
+
+.rate-btn {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rate-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.rating-display {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: #252530;
+  border: 1px solid #667eea;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rating-display:hover {
+  background: #313244;
+}
+
+.rating-star {
+  color: #fbbf24;
+  font-size: 1rem;
+}
+
+.rating-value {
+  color: #e4e4e7;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.rating-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: #1e1e2e;
+  border: 1px solid #313244;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  padding: 1rem;
+  z-index: 100;
+  min-width: 240px;
+}
+
+.rating-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.rating-popup-header span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e4e4e7;
+}
+
+.rating-popup-header button {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #6b7280;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.rating-popup-header button:hover {
+  color: #a1a1aa;
+}
+
+.rating-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.rating-num {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #252530;
+  border: 2px solid #313244;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rating-num:hover {
+  background: #313244;
+  border-color: #667eea;
+  color: #e4e4e7;
+}
+
+.rating-num.selected {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: transparent;
+}
