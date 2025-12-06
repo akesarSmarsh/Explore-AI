@@ -19,6 +19,17 @@ class VolumeAlertService:
     def __init__(self, db: Session):
         self.db = db
     
+    def get_latest_email_date(self) -> datetime:
+        """
+        Get the latest email date from the database.
+        Falls back to current time if no emails exist.
+        This ensures alert evaluation works with historical data.
+        """
+        result = self.db.query(func.max(Email.date)).scalar()
+        if result:
+            return result
+        return datetime.utcnow()
+    
     # ============ CRUD Operations ============
     
     def create(self, data: VolumeAlertCreate) -> VolumeAlert:
@@ -105,11 +116,14 @@ class VolumeAlertService:
         Evaluate a volume alert based on current data.
         
         Returns: (triggered: bool, matched_data: dict)
+        
+        Uses latest email date as reference point to support historical data.
         """
         duration_hours = alert.get_duration_hours()
         baseline_hours = duration_hours * 2  # Use double the duration for baseline
         
-        now = datetime.utcnow()
+        # Use latest email date instead of current time for historical data support
+        now = self.get_latest_email_date()
         monitoring_start = now - timedelta(hours=duration_hours)
         baseline_start = monitoring_start - timedelta(hours=baseline_hours)
         

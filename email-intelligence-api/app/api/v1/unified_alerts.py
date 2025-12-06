@@ -577,33 +577,25 @@ def get_communication_activity(
         except (ValueError, TypeError) as e:
             raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
     
-    # Option 3: Use hours_back from now (default)
-    # But first check if there's data - if not in recent range, use all data
-    recent_count = db.query(func.count(Email.id)).filter(
-        Email.date >= datetime.utcnow() - timedelta(hours=hours_back)
-    ).scalar()
+    # Option 3: Use hours_back relative to latest email date (for historical data support)
+    # Get latest email date as reference point instead of current time
+    latest_email_date = db.query(func.max(Email.date)).scalar()
     
-    if recent_count == 0:
-        # No recent data, use all available data
-        date_range = db.query(
-            func.min(Email.date).label('min_date'),
-            func.max(Email.date).label('max_date')
-        ).first()
-        
-        if date_range.min_date and date_range.max_date:
-            result = service.analyze_communication_activity_custom(
-                start_date=date_range.min_date,
-                end_date=date_range.max_date,
-                algorithm=algorithm,
-                entity_type=entity_type,
-                entity_value=entity_value,
-                email_ids=matching_email_ids,
-                dbscan_eps=dbscan_eps,
-                dbscan_min_samples=dbscan_min_samples,
-                kmeans_clusters=kmeans_clusters
-            )
-            return result
+    if latest_email_date:
+        # Use latest email date as the end point, respect hours_back window
+        result = service.analyze_communication_activity(
+            hours_back=hours_back,
+            algorithm=algorithm,
+            entity_type=entity_type,
+            entity_value=entity_value,
+            email_ids=matching_email_ids,
+            dbscan_eps=dbscan_eps,
+            dbscan_min_samples=dbscan_min_samples,
+            kmeans_clusters=kmeans_clusters
+        )
+        return result
     
+    # Fallback if no emails exist
     result = service.analyze_communication_activity(
         hours_back=hours_back,
         algorithm=algorithm,

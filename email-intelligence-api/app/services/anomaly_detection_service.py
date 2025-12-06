@@ -29,6 +29,19 @@ class AnomalyDetectionService:
         self.db = db
         self.scaler = StandardScaler()
     
+    def get_latest_email_date(self) -> datetime:
+        """
+        Get the latest email date from the database.
+        Falls back to current time if no emails exist.
+        This ensures anomaly detection works with historical data (e.g., from year 2000).
+        """
+        result = self.db.query(func.max(Email.date)).scalar()
+        if result:
+            logger.info(f"[ANOMALY] Using latest email date as reference: {result}")
+            return result
+        # Fallback to current time if no emails
+        return datetime.utcnow()
+    
     def get_semantic_matching_email_ids(
         self,
         search_query: str,
@@ -511,8 +524,11 @@ class AnomalyDetectionService:
         
         Returns activity data with anomaly markers for dashboard visualization.
         email_ids: Optional list of email IDs to filter (for Smart AI semantic search)
+        
+        Uses latest email date as reference point to support historical data.
         """
-        end_date = datetime.utcnow()
+        # Use latest email date instead of current time for historical data support
+        end_date = self.get_latest_email_date()
         start_date = end_date - timedelta(hours=hours_back)
         
         return self._analyze_activity(
@@ -1015,8 +1031,11 @@ class AnomalyDetectionService:
         Evaluate an entity type alert using the specified algorithm.
         
         Returns detection result with current value, baseline, and whether it triggered.
+        
+        Uses latest email date as reference point to support historical data.
         """
-        end_date = datetime.utcnow()
+        # Use latest email date instead of current time for historical data support
+        end_date = self.get_latest_email_date()
         
         # Get current window data
         window_start = end_date - timedelta(hours=window_hours)

@@ -16,6 +16,17 @@ class SmarshAlertService:
     def __init__(self, db: Session):
         self.db = db
     
+    def get_latest_email_date(self) -> datetime:
+        """
+        Get the latest email date from the database.
+        Falls back to current time if no emails exist.
+        This ensures alert evaluation works with historical data.
+        """
+        result = self.db.query(func.max(Email.date)).scalar()
+        if result:
+            return result
+        return datetime.utcnow()
+    
     # ============ CRUD Operations ============
     
     def create(self, data: SmarshAlertCreate) -> SmarshAlert:
@@ -349,8 +360,11 @@ class SmarshAlertService:
         Evaluate an alert and determine if it should trigger.
         
         Returns detailed evaluation result.
+        
+        Uses latest email date as reference point to support historical data.
         """
-        now = datetime.utcnow()
+        # Use latest email date instead of current time for historical data support
+        now = self.get_latest_email_date()
         window_minutes = alert.get_window_minutes()
         
         # Current window
@@ -498,7 +512,8 @@ class SmarshAlertService:
         baseline_days = time_window.get("baseline_days", 7)
         window_minutes = alert.get_window_minutes()
         
-        now = datetime.utcnow()
+        # Use latest email date instead of current time for historical data support
+        now = self.get_latest_email_date()
         
         # Compute baseline values (same window for each day in baseline period)
         baseline_values = []

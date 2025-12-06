@@ -476,8 +476,8 @@ class UnifiedAlertService:
         entities = alert.detected_entities or []
         patterns = alert.detected_patterns or []
         
-        # Get recent emails
-        end_date = datetime.utcnow()
+        # Get recent emails - use latest email date for historical data support
+        end_date = self.anomaly_service.get_latest_email_date()
         start_date = end_date - timedelta(hours=24)
         
         # Build query based on parsed keywords
